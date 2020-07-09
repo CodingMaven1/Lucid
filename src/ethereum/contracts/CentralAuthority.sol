@@ -7,6 +7,8 @@ contract CentralAuth {
         string Description;
         uint Price;
         bool Approval;
+        uint BidCount;
+        mapping (uint => uint) Bids;
     }
     
     struct Company{
@@ -17,8 +19,16 @@ contract CentralAuth {
         mapping (uint => Product) Products;
     }
     
+    struct Logistic{
+        string Name;
+        uint Rating;
+    }
+    
     address public Admin;
+    address[] public CompanyAddress;
+    address[] public LogisticAddress;
     mapping (address => Company) public Companies;
+    mapping (address => Logistic) public Logistics;
     
     constructor() public{
         Admin = msg.sender;
@@ -29,15 +39,15 @@ contract CentralAuth {
         _;
     }
     
-    function CreateCompany(string memory _name, string memory  _description, address _companyowner) public onlyAdmin {
+    function CreateCompany(string memory _name, string memory  _description) public {
         Company memory newCompany = Company({
             Name: _name,
             Description: _description,
-            Owner: _companyowner,
+            Owner: msg.sender,
             ProductCount: 0
         });
-        
-        Companies[_companyowner] = newCompany;
+        CompanyAddress.push(msg.sender);
+        Companies[msg.sender] = newCompany;
     }
     
     function CreateProduct(string memory _name, string memory _Description, uint _price) public {
@@ -47,6 +57,7 @@ contract CentralAuth {
             Name: _name,
             Description: _Description,
             Price: _price,
+            BidCount: 0,
             Approval: false
         });
         
@@ -57,6 +68,16 @@ contract CentralAuth {
     function ApproveProduct(uint _index, address _companyowner) public onlyAdmin{
         require(msg.sender == Companies[_companyowner].Owner, "You are not the Owner");
         Companies[_companyowner].Products[_index].Approval = true;
+    }
+    
+    function RegisterLogistics(string memory _name) public {
+        Logistic memory newLogistics = Logistic({
+            Name: _name,
+            Rating: 0
+        });
+        LogisticAddress.push(msg.sender);
+        Logistics[msg.sender] = newLogistics;
+        
     }
     
 }
