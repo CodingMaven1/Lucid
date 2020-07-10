@@ -1,6 +1,10 @@
 pragma solidity ^0.6.0;
 
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SafeMath.sol";
+
 contract CentralAuth {
+    
+    using SafeMath for uint;
     
     struct Product {
         string Name;
@@ -49,7 +53,7 @@ contract CentralAuth {
     }
     
     function CreateCompany(string memory _name, string memory  _description) public {
-        require(Companies[msg.sender].Owner == msg.sender, "Company already registered from this address");
+        require(Companies[msg.sender].Owner != msg.sender, "Company already registered from this address");
         Company memory newCompany = Company({
             Name: _name,
             Description: _description,
@@ -74,15 +78,16 @@ contract CentralAuth {
         });
         
         CreatedCompany.Products[CreatedCompany.ProductCount] = newProduct;
-        CreatedCompany.ProductCount++;
+        CreatedCompany.ProductCount.add(1);
     }
     
     function ApproveProduct(uint _index, address _companyowner) public onlyAdmin{
-        Companies[_companyowner].Products[_index].Approval = true;
+        Product storage CreatedProduct = Companies[_companyowner].Products[_index];
+        CreatedProduct.Approval = true;
     }
     
     function RegisterLogistics(string memory _name) public {
-        require(Logistics[msg.sender].Owner == msg.sender, "Logistic already registered from this address");
+        require(Logistics[msg.sender].Owner != msg.sender, "Logistic already registered from this address");
         Logistic memory newLogistics = Logistic({
             Name: _name,
             Rating: 0,
@@ -94,12 +99,23 @@ contract CentralAuth {
     
     function AcceptBid(uint _maxfees, uint _index) public {
         require(msg.sender == Companies[msg.sender].Owner, "Only Company Owner has the access");
-        Companies[msg.sender].Products[_index].AcceptBid = true;
-        Companies[msg.sender].Products[_index].Maxfees = _maxfees;
+        Product storage CreatedProduct = Companies[msg.sender].Products[_index];
+        require(CreatedProduct.Approval, "Your Product has not been approved yet");
+        CreatedProduct.AcceptBid = true;
+        CreatedProduct.Maxfees = _maxfees;
     }
     
-    function MakeBid(uint _demand) public payable {
-        
+    function MakeBid(uint _demand, address _companyowner, uint _index) public payable {
+        Product storage CreatedProduct = Companies[_companyowner].Products[_index];
+        require(CreatedProduct.AcceptBid, "Company hasn't approved the bidding of the product");
+        require(_demand < CreatedProduct.Maxfees && msg.value > 0, "Pay appropriate security money");
+        Bid memory newBid = Bid({
+            demandfees: _demand,
+            security: msg.value,
+            logisticAddress: msg.sender
+        });
+        CreatedProduct.Bids[CreatedProduct.BidCount] = newBid;
+        CreatedProduct.BidCount.add(1);
     }
     
 }
