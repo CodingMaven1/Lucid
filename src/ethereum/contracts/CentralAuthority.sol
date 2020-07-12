@@ -14,6 +14,8 @@ contract CentralAuth {
         uint Maxfees;
         uint BidCount;
         bool AcceptBid;
+        uint prevBidIndex;
+        uint[] FinalizedBids;
         mapping (uint => Bid) Bids;
     }
     
@@ -28,7 +30,9 @@ contract CentralAuth {
     struct Bid{
         uint demandfees;
         uint security;
-        address logisticAddress;
+        address payable logisticAddress;
+        bool securityReturned;
+        bool feespaid;
     }
     
     struct Logistic{
@@ -67,6 +71,7 @@ contract CentralAuth {
     function CreateProduct(string memory _name, string memory _Description, uint _price ) public {
         require(msg.sender == Companies[msg.sender].Owner, "Only Company Owner has the access");
         Company storage CreatedCompany = Companies[msg.sender];
+        uint[] memory arr;
         Product memory newProduct = Product({
             Name: _name,
             Description: _Description,
@@ -74,7 +79,9 @@ contract CentralAuth {
             BidCount: 0,
             Approval: false,
             Maxfees: 0,
-            AcceptBid: false
+            AcceptBid: false,
+            FinalizedBids: arr,
+            prevBidIndex: 0
         });
         
         CreatedCompany.Products[CreatedCompany.ProductCount] = newProduct;
@@ -112,10 +119,26 @@ contract CentralAuth {
         Bid memory newBid = Bid({
             demandfees: _demand,
             security: msg.value,
-            logisticAddress: msg.sender
+            logisticAddress: msg.sender,
+            feespaid: false,
+            securityReturned: false
         });
         CreatedProduct.Bids[CreatedProduct.BidCount] = newBid;
         CreatedProduct.BidCount.add(1);
+    }
+    
+    function FinalizeBid(uint _index, uint _bidIndex) public {
+        require(msg.sender == Companies[msg.sender].Owner, "Only Company Owner has the access");
+        Product storage CreatedProduct = Companies[msg.sender].Products[_index];
+        for(uint i= CreatedProduct.prevBidIndex; i<=CreatedProduct.BidCount; i++){
+            Bid storage CreatedBid = CreatedProduct.Bids[i];
+            CreatedBid.logisticAddress.transfer(CreatedBid.security);
+            CreatedBid.securityReturned = true;
+        }
+        CreatedProduct.prevBidIndex = CreatedProduct.BidCount.add(1);
+        CreatedProduct.FinalizedBids.push(_bidIndex);
+        CreatedProduct.AcceptBid = false;
+        CreatedProduct.Maxfees =0;
     }
     
 }
