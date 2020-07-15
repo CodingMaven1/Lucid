@@ -35,6 +35,12 @@ contract CentralAuth {
         bool feespaid;
     }
     
+    struct Retailer{
+        string Name;
+        string Description;
+        address Owner; 
+    }
+    
     struct Logistic{
         string Name;
         uint Rating;
@@ -44,8 +50,10 @@ contract CentralAuth {
     address public Admin;
     address[] public CompanyAddress;
     address[] public LogisticAddress;
+    address[] public RetailerAddress;
     mapping (address => Company) public Companies;
     mapping (address => Logistic) public Logistics;
+    mapping (address => Retailer) public Retailers;
     
     constructor() public{
         Admin = msg.sender;
@@ -102,6 +110,17 @@ contract CentralAuth {
         });
         LogisticAddress.push(msg.sender);
         Logistics[msg.sender] = newLogistics;
+    }
+    
+    function RegisterRetailer(string memory _name, string memory _description) public {
+        require(msg.sender != Retailers[msg.sender].Owner, "Retailer already registered from this address");
+        Retailer memory newRetailer = Retailer({
+            Name: _name,
+            Description: _description,
+            Owner: msg.sender
+        })
+        RetailerAddress.push(msg.sender);
+        Retailers[msg.sender] = newRetailer;
     }
     
     function AcceptBid(uint _maxfees, uint _index) public {
