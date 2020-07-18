@@ -14,9 +14,11 @@ contract CentralAuth {
         uint Maxfees;
         uint BidCount;
         bool AcceptBid;
-        uint prevBidIndex;
+        uint PrevBidIndex;
         uint[] FinalizedBids;
         mapping (uint => Bid) Bids;
+        address CurrentRetailer;
+        uint CurrentDealMoney;
     }
     
     struct Company{
@@ -28,17 +30,24 @@ contract CentralAuth {
     }
     
     struct Bid{
-        uint demandfees;
-        uint security;
-        address payable logisticAddress;
-        bool securityReturned;
-        bool feespaid;
+        uint Demandfees;
+        uint Security;
+        uint DealMoney;
+        address payable LogisticAddress;
+        bool SecurityReturned;
+        bool Feespaidtologistic;
+        bool Feespaidtocompany;
+        address RetailerAddress;
+        address CompanyAddress;
+        uint ProductIndex;
     }
     
     struct Retailer{
         string Name;
         string Description;
         address Owner; 
+        uint ProductCount;
+        mapping (uint => Bid)  ProductsRecieved;
     }
     
     struct Logistic{
@@ -89,7 +98,9 @@ contract CentralAuth {
             Maxfees: 0,
             AcceptBid: false,
             FinalizedBids: arr,
-            prevBidIndex: 0
+            PrevBidIndex: 0,
+            CurrentRetailer: msg.sender,
+            CurrentDealMoney: 0
         });
         
         CreatedCompany.Products[CreatedCompany.ProductCount] = newProduct;
@@ -117,30 +128,39 @@ contract CentralAuth {
         Retailer memory newRetailer = Retailer({
             Name: _name,
             Description: _description,
-            Owner: msg.sender
-        })
+            Owner: msg.sender,
+            ProductCount: 0
+        });
         RetailerAddress.push(msg.sender);
         Retailers[msg.sender] = newRetailer;
     }
     
-    function AcceptBid(uint _maxfees, uint _index) public {
+    function AcceptBid(uint _maxfees, uint _index, address _retaileraddress, uint _dealmoney) public {
         require(msg.sender == Companies[msg.sender].Owner, "Only Company Owner has the access");
         Product storage CreatedProduct = Companies[msg.sender].Products[_index];
         require(CreatedProduct.Approval, "Your Product has not been approved yet");
         CreatedProduct.AcceptBid = true;
         CreatedProduct.Maxfees = _maxfees;
+        CreatedProduct.CurrentRetailer = _retaileraddress;
+        CreatedProduct.CurrentDealMoney = _dealmoney;
     }
     
     function MakeBid(uint _demand, address _companyowner, uint _index) public payable {
         Product storage CreatedProduct = Companies[_companyowner].Products[_index];
         require(CreatedProduct.AcceptBid, "Company hasn't approved the bidding of the product");
-        require(_demand < CreatedProduct.Maxfees && msg.value > 0, "Pay appropriate security money");
+        require(msg.value > 0, "Pay appropriate security money");
+        require(_demand < CreatedProduct.Maxfees, "Your demanded fees is more than the max fee the company is wiiling to pay");
         Bid memory newBid = Bid({
-            demandfees: _demand,
-            security: msg.value,
-            logisticAddress: msg.sender,
-            feespaid: false,
-            securityReturned: false
+            Demandfees: _demand,
+            Security: msg.value,
+            LogisticAddress: msg.sender,
+            Feespaidtologistic: false,
+            SecurityReturned: false,
+            Feespaidtocompany: false,
+            RetailerAddress: CreatedProduct.CurrentRetailer,
+            CompanyAddress: _companyowner,
+            ProductIndex: _index,
+            DealMoney: CreatedProduct.CurrentDealMoney
         });
         CreatedProduct.Bids[CreatedProduct.BidCount] = newBid;
         CreatedProduct.BidCount.add(1);
@@ -149,15 +169,22 @@ contract CentralAuth {
     function FinalizeBid(uint _index, uint _bidIndex) public {
         require(msg.sender == Companies[msg.sender].Owner, "Only Company Owner has the access");
         Product storage CreatedProduct = Companies[msg.sender].Products[_index];
-        for(uint i= CreatedProduct.prevBidIndex; i<=CreatedProduct.BidCount; i++){
+        for(uint i= CreatedProduct.PrevBidIndex; i<=CreatedProduct.BidCount; i++){
             Bid storage CreatedBid = CreatedProduct.Bids[i];
-            CreatedBid.logisticAddress.transfer(CreatedBid.security);
-            CreatedBid.securityReturned = true;
+            CreatedBid.LogisticAddress.transfer(CreatedBid.Security);
+            CreatedBid.SecurityReturned = true;
         }
-        CreatedProduct.prevBidIndex = CreatedProduct.BidCount.add(1);
+        CreatedProduct.PrevBidIndex = CreatedProduct.BidCount.add(1);
         CreatedProduct.FinalizedBids.push(_bidIndex);
         CreatedProduct.AcceptBid = false;
         CreatedProduct.Maxfees =0;
+    }
+    
+    function RecieveProduct(address _companyowner, uint _index, uint _bidIndex) public{
+        require(msg.sender == Retailers[msg.sender].Owner);
+        Logistic storage CreatedRetailer = Retailers[msg.sender]; 
+        Bid storage CreatedBid = Companies[_companyowner].Products[_index].Bids[_bidIndex];
+        
     }
     
 }
