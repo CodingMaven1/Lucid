@@ -38,7 +38,7 @@ contract CentralAuth {
         bool Feespaidtologistic;
         bool Feespaidtocompany;
         address RetailerAddress;
-        address CompanyAddress;
+        address payable CompanyAddress;
         uint ProductIndex;
     }
     
@@ -145,7 +145,7 @@ contract CentralAuth {
         CreatedProduct.CurrentDealMoney = _dealmoney;
     }
     
-    function MakeBid(uint _demand, address _companyowner, uint _index) public payable {
+    function MakeBid(uint _demand, address payable _companyowner, uint _index) public payable {
         Product storage CreatedProduct = Companies[_companyowner].Products[_index];
         require(CreatedProduct.AcceptBid, "Company hasn't approved the bidding of the product");
         require(msg.value > 0, "Pay appropriate security money");
@@ -166,9 +166,10 @@ contract CentralAuth {
         CreatedProduct.BidCount.add(1);
     }
     
-    function FinalizeBid(uint _index, uint _bidIndex) public {
+    function FinalizeBid(uint _index, uint _bidIndex) public payable {
         require(msg.sender == Companies[msg.sender].Owner, "Only Company Owner has the access");
         Product storage CreatedProduct = Companies[msg.sender].Products[_index];
+        require(msg.value > CreatedProduct.Bids[_bidIndex].Demandfees, "Please pay the required money for the logistics");
         for(uint i= CreatedProduct.PrevBidIndex; i<=CreatedProduct.BidCount; i++){
             Bid storage CreatedBid = CreatedProduct.Bids[i];
             CreatedBid.LogisticAddress.transfer(CreatedBid.Security);
@@ -180,11 +181,17 @@ contract CentralAuth {
         CreatedProduct.Maxfees =0;
     }
     
-    function RecieveProduct(address _companyowner, uint _index, uint _bidIndex) public{
+    function RecieveProduct(address  _companyowner, uint _index, uint _bidIndex) public payable{
         require(msg.sender == Retailers[msg.sender].Owner);
-        Logistic storage CreatedRetailer = Retailers[msg.sender]; 
+        Retailer storage CreatedRetailer = Retailers[msg.sender]; 
         Bid storage CreatedBid = Companies[_companyowner].Products[_index].Bids[_bidIndex];
-        
+        require(msg.value > CreatedBid.DealMoney, "Please pay the agreed amount of money for the product");
+        CreatedBid.CompanyAddress.transfer(msg.value);
+        CreatedBid.LogisticAddress.transfer(CreatedBid.Demandfees);
+        CreatedBid.Feespaidtocompany = true;
+        CreatedBid.Feespaidtologistic = true;
+        CreatedRetailer.ProductsRecieved[CreatedRetailer.ProductCount] = CreatedBid;
+        CreatedRetailer.ProductCount.add(1);
     }
     
 }
