@@ -32,10 +32,14 @@ Producer is responsible for the production of goods. He needs to register the co
 
 Logistics take care of the transfer of goods from producer to the retailer. They need to get registered and then make bids fot getting the contract to ship the product.
 
-## Retailer
+### Retailer
 
 Retailer recieves the products from the logistics. He also needs to be registered.
 
 Now, as we know the roles of everyone, lets see an example!
+
+### Supply-Chain Walkthrough
+
+
 
 
